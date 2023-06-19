@@ -8,7 +8,16 @@ const Pagination = ({
   onPrevPageChange,
   onNextPageChange,
 }) => {
-  const pageArray = Array.from({ length: totalPage }, (_, index) => index + 1);
+  let pageArray = [];
+
+  const range = Math.min(5, totalPage);
+  let startPage = Math.max(1, currentPage - Math.floor(range / 2));
+  startPage = Math.min(startPage, totalPage - range + 1);
+
+  for (let i = startPage; i < startPage + range; i++) {
+    pageArray.push(i);
+  }
+
   return (
     <div className="flex w-full justify-center gap-4 mt-4">
       <button
