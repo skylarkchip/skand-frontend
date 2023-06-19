@@ -1,25 +1,33 @@
 import React, { useState } from "react";
 import { useMutation, useQuery } from "@apollo/client";
 import { BsCheckCircleFill, BsCircle } from "react-icons/bs";
+
+// Redux
 import { useDispatch, useSelector } from "react-redux";
+import { todoActions } from "@/redux/todo";
 
 // Mutations
 import { DELETE_TODO, UPDATE_TODO } from "@/lib/graphql/mutations";
 
 // Queries
 import { FETCH_USER_TODOS } from "@/lib/graphql/queries";
-import { todoActions } from "@/redux/todo";
 
 function TodosListItem({ todo }) {
   const dispatch = useDispatch();
   const currentPage = useSelector((state) => state.todo.currentPage);
+  const [skipQuery, setSkipQuery] = useState(true);
 
   const [isEditing, setIsEditing] = useState(false);
   const [content, setContent] = useState(todo.content);
 
   // GraphQL - Query - Mutations
-  const { data, refetch } = useQuery(FETCH_USER_TODOS, {
+  const { refetch } = useQuery(FETCH_USER_TODOS, {
     variables: { page: currentPage, pageSize: 3 },
+    skip: skipQuery,
+    onCompleted: (data) => {
+      dispatch(todoActions.setTodos(data.userTodos));
+      skipQuery(true);
+    },
   });
   const [updateTodo] = useMutation(UPDATE_TODO);
   const [deleteTodo] = useMutation(DELETE_TODO);
@@ -34,7 +42,8 @@ function TodosListItem({ todo }) {
       },
     });
     dispatch(todoActions.setCurrentPage(1));
-    refetch();
+    setSkipQuery(false);
+    refetch({ page: currentPage, pageSize: 3 });
   };
 
   const onEditHandler = () => {
@@ -52,7 +61,8 @@ function TodosListItem({ todo }) {
       },
     });
     setIsEditing(false);
-    refetch();
+    setSkipQuery(false);
+    refetch({ page: currentPage, pageSize: 3 });
   };
 
   const onCancelEditHandler = () => {
@@ -66,6 +76,9 @@ function TodosListItem({ todo }) {
         id: todo.id,
       },
     });
+    refetch({ page: 1, pageSize: 3 });
+    setSkipQuery(false);
+    dispatch(todoActions.setCurrentPage(1));
   };
 
   const onInputFieldChangeHandler = (e) => {

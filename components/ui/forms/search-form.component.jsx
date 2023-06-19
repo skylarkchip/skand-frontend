@@ -16,6 +16,7 @@ function SearchForm({ onSearchInput, onSearch }) {
     variables: { page: 1, pageSize: 3, searchKeyword: searchKeyword },
     skip: skipQuery,
     onCompleted: (data) => {
+      console.log(data);
       dispatch(todoActions.setTodos(data.userTodos));
       setSkipQuery(true);
     },

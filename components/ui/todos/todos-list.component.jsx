@@ -2,7 +2,6 @@ import React from "react";
 import TodosListItem from "./todos-list-item.component";
 
 function TodosList({ todos }) {
-  console.log("Todo List", todos);
   return (
     <div className="w-full flex flex-col gap-y-8">
       {todos.length > 0 ? (

@@ -9,10 +9,23 @@ function InputField({
   autoComplete,
   onChange,
   value,
+  hasError,
+  onBlur,
 }) {
+  console.log(hasError);
   return (
-    <div className="p-4 bg-custom-off-white shadow-md rounded-2xl flex gap-x-4 items-center">
-      <BsCircle className="text-custom-pink text-lg" />
+    <div
+      className={`p-4 bg-custom-off-white shadow-md rounded-2xl flex gap-x-4 items-center ${
+        hasError && "border border-custom-pink"
+      }`}
+    >
+      {value === "" ? (
+        <BsCircle className="text-custom-pink text-lg" />
+      ) : hasError ? (
+        <BsXCircleFill className="text-custom-pink text-lg" />
+      ) : (
+        <BsCheckCircleFill className="text-custom-pink text-lg" />
+      )}
       <input
         type={inputType}
         name={name}
@@ -22,6 +35,7 @@ function InputField({
         autoComplete={autoComplete || ""}
         onChange={onChange}
         value={value}
+        onBlur={onBlur}
       />
     </div>
   );

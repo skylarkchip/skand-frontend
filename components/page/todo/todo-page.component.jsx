@@ -33,55 +33,58 @@ function TodoPage() {
 
   const dispatch = useDispatch();
   const todos = useSelector((state) => state.todo.todos);
-
+  const searchKeyword = useSelector((state) => state.todo.searchKeyword);
   const currentPage = useSelector((state) => state.todo.currentPage);
 
   const [todoInput, setTodoInput] = useState("");
 
   // GraphQL Query - Mutation
-  const { loading, error, data, refetch } = useQuery(FETCH_USER_TODOS, {
+  const { loading, refetch } = useQuery(FETCH_USER_TODOS, {
     variables: { page: currentPage, pageSize: 3 },
+    fetchPolicy: "network-only",
+    onCompleted: (data) => {
+      dispatch(todoActions.setTodos(data.userTodos));
+    },
   });
   const [createTodo] = useMutation(CREATE_TODO);
 
   useEffect(() => {
     refetch();
-    if (!loading && data) {
-      dispatch(todoActions.setTodos(data.userTodos));
-      dispatch(todoActions.setCurrentPage(data.userTodos.currentPage));
-    }
-  }, [data, loading, refetch, dispatch]);
+  }, [refetch]);
 
   const onInputFieldChangeHandler = (e) => {
     setTodoInput(e.target.value);
   };
 
   const onTodoAddHandler = () => {
-    createTodo({
-      variables: { content: todoInput },
-    });
-    setTodoInput("");
-    refetch({ page: 1, pageSize: 3 });
+    if (todoInput !== "") {
+      createTodo({
+        variables: { content: todoInput },
+      });
+      setTodoInput("");
+      refetch({ page: 1, pageSize: 3 });
+    }
   };
 
   const onPageChangeHandler = (num) => {
     dispatch(todoActions.setCurrentPage(num));
-    refetch({ page: num, pageSize: 3 });
+    refetch({ page: num, pageSize: 3, searchKeyword });
   };
 
   const onPrevPageChangeHandler = () => {
     dispatch(todoActions.setCurrentPage(currentPage - 1));
-    refetch({ page: currentPage - 1, pageSize: 3 });
+    refetch({ page: currentPage - 1, pageSize: 3, searchKeyword });
   };
 
   const onNextPageChangeHandler = () => {
     dispatch(todoActions.setCurrentPage(currentPage + 1));
-    refetch({ page: currentPage + 1, pageSize: 3 });
+    refetch({ page: currentPage + 1, pageSize: 3, searchKeyword });
   };
 
   const onSignOutHandler = () => {
     Cookies.remove("token");
     dispatch(todoActions.setTodos([]));
+    dispatch(todoActions.setSearchKeyword(""));
     dispatch(todoActions.setCurrentPage(1));
     router.replace("/");
   };
@@ -112,7 +115,17 @@ function TodoPage() {
             </Button>
           </div>
           <div className="bg-custom-off-white w-full p-4 rounded-xl shadow-md items-center justify-center">
-            {data && <TodosList todos={todos.todos ? todos.todos : todos} />}
+            {loading ? (
+              <div class="animate-pulse flex space-x-4">
+                <div class="flex-1 space-y-6 py-1">
+                  <div class="h-4 bg-slate-200 rounded"></div>
+                  <div class="h-4 bg-slate-200 rounded"></div>
+                  <div class="h-4 bg-slate-200 rounded"></div>
+                </div>
+              </div>
+            ) : (
+              <TodosList todos={todos.todos ? todos.todos : todos} />
+            )}
             {todos.totalPage > 1 && (
               <Pagination
                 currentPage={currentPage}

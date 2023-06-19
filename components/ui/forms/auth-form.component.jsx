@@ -1,9 +1,10 @@
-import React from "react";
+import React, { useState } from "react";
 import dynamic from "next/dynamic";
-import { useFormik } from "formik";
+import { ErrorMessage, Form, Formik } from "formik";
 import { useRouter } from "next/router";
 import { useMutation } from "@apollo/client";
 import Cookies from "js-cookie";
+import * as Yup from "yup";
 
 // GraphQL
 import { AUTHENTICATE_USER, CREATE_USER } from "@/lib/graphql/mutations";
@@ -14,87 +15,134 @@ const Button = dynamic(() => import("../button/button.component"));
 
 const AuthForm = () => {
   const router = useRouter();
-  const [authenticateUser, { data: authenticatedUserData }] =
-    useMutation(AUTHENTICATE_USER);
-  const [registerUser, { data: registerUserData }] = useMutation(CREATE_USER);
+  const [error, setError] = useState("");
 
-  const formik = useFormik({
-    initialValues: {
-      email: "",
-      password: "",
-    },
-    onSubmit: {},
-  });
+  const [authenticateUser] = useMutation(AUTHENTICATE_USER);
+  const [registerUser] = useMutation(CREATE_USER);
 
-  const onLoginHandler = async (values) => {
-    const { email, password } = values;
-    try {
-      const response = await authenticateUser({
-        variables: { email, password },
-      });
+  const onHandleSubmit = async (values, { setSubmitting }) => {
+    const { email, password, isSignUp } = values;
 
-      let token = response.data.token;
+    if (!isSignUp) {
+      try {
+        const { data } = await authenticateUser({
+          variables: { email, password },
+        });
 
-      Cookies.set("token", token);
+        if (data.token) {
+          let token = data.token;
 
-      router.push("/todo");
-    } catch (error) {
-      console.log("ERROR", error);
-    }
-    // console.log(response);
-  };
+          Cookies.set("token", token);
+          router.push("/todo");
+        } else {
+          setError(
+            "There seems to be an issue with your request. Please Try Again."
+          );
+        }
+      } catch (error) {
+        setError("User does not exist or wrong password.");
+      }
+    } else {
+      try {
+        const { data } = await registerUser({
+          variables: { email, password },
+        });
 
-  const onSignUpHandler = async (values) => {
-    const { email, password } = values;
-    try {
-      const response = await registerUser({
-        variables: { email, password },
-      });
+        if (data.createUser) {
+          const { data: authData } = await authenticateUser({
+            variables: { email, password },
+          });
 
-      console.log(response);
-    } catch (error) {
-      console.log("ERROR", error);
+          if (authData.token) {
+            let token = authData.token;
+
+            Cookies.set("token", token);
+            router.push("/todo");
+          } else {
+            setError(
+              "There seems to be an issue with your request. Please Try Again."
+            );
+          }
+        }
+      } catch (error) {
+        setError("E-mail address already exists.");
+      }
     }
   };
 
   return (
-    <form className="flex flex-col gap-y-4">
-      <InputField
-        inputType="email"
-        name="email"
-        id="email"
-        placeholder="E-mail"
-        onChange={formik.handleChange}
-        onBlur={formik.handleBlur}
-        value={formik.values.email}
-      />
-      <InputField
-        inputType="password"
-        name="password"
-        id="password"
-        placeholder="Password"
-        autoComplete="current-password"
-        onChange={formik.handleChange}
-        onBlur={formik.handleBlur}
-        value={formik.values.password}
-      />
-      <div className="w-full flex gap-x-4 justify-end">
-        <Button
-          buttonType="button"
-          isPrimary={true}
-          onClick={() => onLoginHandler(formik.values)}
-        >
-          Log In
-        </Button>
-        <Button
-          buttonType="button"
-          isPrimary={false}
-          onClick={() => onSignUpHandler(formik.values)}
-        >
-          Sign Up
-        </Button>
-      </div>
-    </form>
+    <Formik
+      initialValues={{ email: "", password: "", isSignUp: false }}
+      validationSchema={Yup.object({
+        email: Yup.string()
+          .email("Please enter a valid e-mail address")
+          .required("Please enter your e-mail address"),
+        password: Yup.string()
+          .min(8, "Password is too short")
+          .required("Please enter your password"),
+      })}
+      onSubmit={onHandleSubmit}
+    >
+      {(formik) => (
+        <>
+          {error && (
+            <div className="w-full">
+              <p className="text-custom-pink">{error}</p>
+            </div>
+          )}
+          <Form className="flex flex-col gap-y-4">
+            <InputField
+              inputType="email"
+              id="email"
+              placeholder="E-mail"
+              onChange={formik.handleChange}
+              onBlur={formik.handleBlur}
+              value={formik.values.email}
+              hasError={formik.errors.email}
+              name="email"
+            />
+            <ErrorMessage
+              name="email"
+              render={(msg) => (
+                <p className="text-sm text-custom-dark-pink">{msg}</p>
+              )}
+            />
+            <InputField
+              inputType="password"
+              id="password"
+              placeholder="Password"
+              autoComplete="current-password"
+              onChange={formik.handleChange}
+              onBlur={formik.handleBlur}
+              value={formik.values.password}
+              hasError={formik.errors.password}
+              name="password"
+            />
+            <ErrorMessage
+              name="password"
+              render={(msg) => (
+                <p className="text-sm text-custom-dark-pink">{msg}</p>
+              )}
+            />
+            <div className="w-full flex gap-x-4 justify-end">
+              <Button buttonType="submit" isPrimary={true}>
+                {formik.values.isSignUp ? "Sign up" : "Log in"}
+              </Button>
+              <Button
+                buttonType="button"
+                onClick={() => {
+                  formik.setFieldValue("isSignUp", !formik.values.isSignUp);
+                }}
+              >
+                {formik.values.isSignUp
+                  ? "Switch to Login"
+                  : "Switch to Sign Up"}
+              </Button>
+            </div>
+          </Form>
+        </>
+      )}
+    </Formik>
   );
 };
 
